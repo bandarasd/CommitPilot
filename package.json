@@ -21,8 +21,31 @@
         "command": "commitpilot.generateCommitMessage",
         "title": "CommitPilot: Generate AI Commit Message",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "commitpilot.test",
+        "title": "CommitPilot: Test Extension"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "commitpilot-explorer",
+          "title": "CommitPilot",
+          "icon": "$(git-commit)"
+        }
+      ]
+    },
+    "views": {
+      "commitpilot-explorer": [
+        {
+          "type": "webview",
+          "id": "commitpilot.sidebar",
+          "name": "AI Commit Generator",
+          "icon": "$(sparkle)"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "commitpilot.generateCommitMessage",

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { exec } from "child_process";
 import * as path from "path";
 import { generateCommitMessageCommand } from "./commands/generateCommitMessage";
+import { CommitPilotProvider } from "./webview/CommitPilotProvider";
 
 function getStagedGitDiff(workspaceRoot: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,6 +23,16 @@ function getStagedGitDiff(workspaceRoot: string): Promise<string> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  console.log('CommitPilot extension is now active!');
+  console.log('Extension URI:', context.extensionUri.toString());
+
+  // Register webview provider for sidebar
+  const provider = new CommitPilotProvider(context.extensionUri, context);
+  const registration = vscode.window.registerWebviewViewProvider(CommitPilotProvider.viewType, provider);
+  context.subscriptions.push(registration);
+
+  console.log('CommitPilot webview provider registered with viewType:', CommitPilotProvider.viewType);
+
   let disposable = vscode.commands.registerCommand(
     "commitpilot.getDiff",
     async () => {
@@ -67,5 +78,13 @@ export function activate(context: vscode.ExtensionContext) {
     () => generateCommitMessageCommand(context)
   );
 
-  context.subscriptions.push(disposable, generateCommitDisposable);
+  // Test command to verify extension is working
+  let testDisposable = vscode.commands.registerCommand(
+    "commitpilot.test",
+    () => {
+      vscode.window.showInformationMessage('CommitPilot extension is working! 🚀');
+    }
+  );
+
+  context.subscriptions.push(disposable, generateCommitDisposable, testDisposable);
 }

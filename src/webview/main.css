@@ -1,0 +1,250 @@
+/* CommitPilot Sidebar Styles */
+body {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    font-weight: var(--vscode-font-weight);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-sideBar-background);
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    padding: 16px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    border-bottom: 1px solid var(--vscode-sideBar-border);
+    padding-bottom: 16px;
+}
+
+.header h2 {
+    margin: 0;
+    color: var(--vscode-sideBarTitle-foreground);
+    font-size: 1.4em;
+    font-weight: 600;
+}
+
+.subtitle {
+    margin: 4px 0 0 0;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+}
+
+/* Status Section */
+.status-section {
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-sideBar-border);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+#git-status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+}
+
+.icon {
+    font-size: 1.1em;
+    width: 20px;
+    text-align: center;
+}
+
+/* Buttons */
+.btn {
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    width: 100%;
+    min-height: 40px;
+    font-weight: 500;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.btn-primary:disabled {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    width: 100%;
+}
+
+.btn-secondary:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.btn-small {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    padding: 6px 10px;
+    font-size: 0.8em;
+}
+
+.btn-small:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Actions Section */
+.actions-section {
+    flex: 0 0 auto;
+}
+
+/* Status Message */
+.status-message {
+    background-color: var(--vscode-notifications-background);
+    color: var(--vscode-notifications-foreground);
+    border: 1px solid var(--vscode-notifications-border);
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.status-message.error {
+    background-color: var(--vscode-errorForeground);
+    color: var(--vscode-errorBackground);
+    border-color: var(--vscode-errorForeground);
+}
+
+.status-message.success {
+    background-color: var(--vscode-testing-iconPassed);
+    color: var(--vscode-errorBackground);
+    border-color: var(--vscode-testing-iconPassed);
+}
+
+/* Result Section */
+.result-section {
+    flex: 1;
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-sideBar-border);
+    border-radius: 6px;
+    padding: 12px;
+    overflow: auto;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--vscode-sideBar-border);
+}
+
+.result-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: var(--vscode-sideBarTitle-foreground);
+}
+
+.result-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Commit Preview */
+.commit-preview {
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+}
+
+.commit-summary {
+    font-weight: 600;
+    color: var(--vscode-gitDecoration-addedResourceForeground);
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: var(--vscode-editor-background);
+    border-radius: 4px;
+    border-left: 3px solid var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.commit-description {
+    color: var(--vscode-foreground);
+    line-height: 1.4;
+    padding: 8px;
+    background-color: var(--vscode-editor-background);
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Footer */
+.footer {
+    margin-top: auto;
+    text-align: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--vscode-sideBar-border);
+}
+
+.footer small {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.8em;
+}
+
+/* Loading Animation */
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--vscode-scrollbarSlider-background);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-activeBackground);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
+}
