@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { exec } from "child_process";
 import * as path from "path";
+import { generateCommitMessageCommand } from "./commands/generateCommitMessage";
 
 function getStagedGitDiff(workspaceRoot: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -60,5 +61,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(disposable);
+  // New AI commit message command
+  let generateCommitDisposable = vscode.commands.registerCommand(
+    "commitpilot.generateCommitMessage",
+    () => generateCommitMessageCommand(context)
+  );
+
+  context.subscriptions.push(disposable, generateCommitDisposable);
 }

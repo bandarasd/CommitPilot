@@ -16,8 +16,29 @@
       {
         "command": "commitpilot.getDiff",
         "title": "CommitPilot: Get Staged Git Diff"
+      },
+      {
+        "command": "commitpilot.generateCommitMessage",
+        "title": "CommitPilot: Generate AI Commit Message",
+        "icon": "$(sparkle)"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "commitpilot.generateCommitMessage",
+        "key": "ctrl+shift+g ctrl+m",
+        "when": "scmProvider == git"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "commitpilot.generateCommitMessage",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
