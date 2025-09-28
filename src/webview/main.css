@@ -79,10 +79,12 @@ body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   line-height: 1.4;
-  resize: vertical;
+  resize: none; /* Disable manual resize since we'll auto-expand */
   min-height: 60px;
+  max-height: 200px; /* Limit maximum height */
+  overflow-y: auto; /* Add scrollbar if content exceeds max-height */
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, height 0.2s ease;
 }
 
 .commit-input:focus {

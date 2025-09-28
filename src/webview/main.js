@@ -95,7 +95,26 @@
   // Update current commit message when user edits the text area
   commitMessageInput?.addEventListener("input", (e) => {
     currentCommitMessage = e.target.value;
+    // Auto-expand textarea as user types
+    autoExpandTextarea(e.target);
   });
+
+  // Auto-expand textarea function
+  function autoExpandTextarea(textarea) {
+    if (!textarea) {
+      return;
+    }
+    
+    // Reset height to calculate new height
+    textarea.style.height = 'auto';
+    
+    // Calculate the new height based on scroll height
+    const newHeight = Math.min(textarea.scrollHeight, 200); // Max 200px
+    const minHeight = 60; // Min 60px
+    
+    // Set the height to the larger of calculated height or minimum height
+    textarea.style.height = Math.max(newHeight, minHeight) + 'px';
+  }
 
   stageAllBtn?.addEventListener("click", () => {
     vscode.postMessage({ type: "stageAllChanges" });
@@ -386,6 +405,8 @@
     if (commitMessageInput) {
       commitMessageInput.value = data.fullMessage;
       commitMessageInput.classList.remove("error");
+      // Auto-expand textarea based on content
+      autoExpandTextarea(commitMessageInput);
     }
 
     hideStatus();
@@ -398,6 +419,8 @@
     if (commitMessageInput) {
       commitMessageInput.value = "";
       commitMessageInput.classList.remove("error");
+      // Reset height to minimum
+      commitMessageInput.style.height = '60px';
     }
   }
 
@@ -405,6 +428,8 @@
     if (commitMessageInput) {
       commitMessageInput.value = `❌ Error: ${errorMessage}`;
       commitMessageInput.classList.add("error");
+      // Auto-expand for error message
+      autoExpandTextarea(commitMessageInput);
     }
     currentCommitMessage = "";
   }
@@ -441,4 +466,9 @@
 
   // Initialize
   vscode.postMessage({ type: "getGitStatus" });
+  
+  // Initial auto-expand in case there's existing content
+  if (commitMessageInput && commitMessageInput.value) {
+    autoExpandTextarea(commitMessageInput);
+  }
 })();
