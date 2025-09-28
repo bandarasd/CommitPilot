@@ -94,6 +94,18 @@ export class GitService {
     await this.executeGitCommand("git add .");
   }
 
+  async stageFile(filePath: string): Promise<void> {
+    // Escape file path in case it contains spaces or special characters
+    const escapedPath = `"${filePath}"`;
+    await this.executeGitCommand(`git add ${escapedPath}`);
+  }
+
+  async commitChanges(message: string): Promise<void> {
+    // Escape quotes in the commit message
+    const escapedMessage = message.replace(/"/g, '\\"');
+    await this.executeGitCommand(`git commit -m "${escapedMessage}"`);
+  }
+
   private parseFileStatus(statusOutput: string): FileStatus[] {
     if (!statusOutput.trim()) {
       return [];

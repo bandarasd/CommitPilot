@@ -61,6 +61,12 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
         case "stageAllChanges":
           await this.handleStageAllChanges();
           break;
+        case "commitChanges":
+          await this.handleCommitChanges(data.message);
+          break;
+        case "stageFile":
+          await this.handleStageFile(data.filePath);
+          break;
       }
     });
 
@@ -245,6 +251,104 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async handleCommitChanges(message: string) {
+    if (!this.gitService) {
+      this.postMessage({
+        type: "error",
+        message: "Git service not initialized. Please open a workspace.",
+      });
+      return;
+    }
+
+    if (!message || message.trim() === "") {
+      this.postMessage({
+        type: "error",
+        message: "Please provide a commit message.",
+      });
+      return;
+    }
+
+    try {
+      this.postMessage({
+        type: "status",
+        message: "Committing changes...",
+        loading: true,
+      });
+
+      await this.gitService.commitChanges(message.trim());
+
+      this.postMessage({
+        type: "status",
+        message: "Changes committed successfully!",
+        loading: false,
+      });
+
+      // Clear the commit message and refresh git status
+      this.postMessage({
+        type: "commitSuccess",
+      });
+
+      await this.handleGetGitStatus();
+
+      // Hide status message after 3 seconds
+      setTimeout(() => {
+        this.postMessage({
+          type: "status",
+          message: "",
+          loading: false,
+        });
+      }, 3000);
+    } catch (error) {
+      this.postMessage({
+        type: "error",
+        message: `Failed to commit changes: ${error}`,
+      });
+    }
+  }
+
+  private async handleStageFile(filePath: string) {
+    if (!this.gitService) {
+      this.postMessage({
+        type: "error",
+        message: "Git service not initialized. Please open a workspace.",
+      });
+      return;
+    }
+
+    try {
+      this.postMessage({
+        type: "status",
+        message: `Staging ${filePath.split('/').pop()}...`,
+        loading: true,
+      });
+
+      await this.gitService.stageFile(filePath);
+
+      this.postMessage({
+        type: "status",
+        message: "File staged successfully!",
+        loading: false,
+      });
+
+      // Refresh git status to update the UI
+      await this.handleGetGitStatus();
+
+      // Hide status message after 2 seconds
+      setTimeout(() => {
+        this.postMessage({
+          type: "status",
+          message: "",
+          loading: false,
+        });
+      }, 2000);
+    } catch (error) {
+      this.postMessage({
+        type: "error",
+        message: `Failed to stage file: ${error}`,
+      });
+    }
+  }
+
   private async handleOpenInEditor(content: string) {
     try {
       const doc = await vscode.workspace.openTextDocument({
@@ -306,18 +410,15 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 							<textarea 
 								id="commit-message-input" 
 								class="commit-input" 
-								placeholder="Generated commit message will appear here..."
+								placeholder="Type your commit message or click ✨ to generate one..."
 								rows="3"
-								readonly
 							></textarea>
 							<button id="generate-commit-btn" class="btn-generate-inline" title="Generate AI commit message">
 								✨
 							</button>
 						</div>
-						<div class="commit-actions" style="display: none;">
-							<button id="copy-commit-btn" class="btn btn-small">📋 Copy</button>
-							<button id="edit-commit-btn" class="btn btn-small">📝 Edit</button>
-							<button id="clear-commit-btn" class="btn btn-small">🗑️ Clear</button>
+						<div class="commit-actions">
+							<button id="commit-btn" class="btn btn-commit">� Commit</button>
 						</div>
 					</div>
 

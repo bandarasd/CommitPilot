@@ -7,9 +7,7 @@
   // DOM Elements
   const generateCommitBtn = document.getElementById("generate-commit-btn");
   const refreshBtn = document.getElementById("refresh-btn");
-  const copyCommitBtn = document.getElementById("copy-commit-btn");
-  const editCommitBtn = document.getElementById("edit-commit-btn");
-  const clearCommitBtn = document.getElementById("clear-commit-btn");
+  const commitBtn = document.getElementById("commit-btn");
   const commitMessageInput = document.getElementById("commit-message-input");
   const commitActions = document.querySelector(".commit-actions");
   const statusMessage = document.getElementById("status-message");
@@ -84,39 +82,14 @@
     showStatus("Refreshing...", false);
   });
 
-  copyCommitBtn?.addEventListener("click", () => {
-    if (currentCommitMessage) {
-      navigator.clipboard
-        .writeText(currentCommitMessage)
-        .then(() => {
-          showStatus("Commit message copied to clipboard!", false, "success");
-          setTimeout(() => hideStatus(), 2000);
-        })
-        .catch(() => {
-          // Fallback for older browsers
-          const textArea = document.createElement("textarea");
-          textArea.value = currentCommitMessage;
-          document.body.appendChild(textArea);
-          textArea.select();
-          document.execCommand("copy");
-          document.body.removeChild(textArea);
-          showStatus("Commit message copied to clipboard!", false, "success");
-          setTimeout(() => hideStatus(), 2000);
-        });
-    }
-  });
-
-  editCommitBtn?.addEventListener("click", () => {
-    if (currentCommitMessage) {
+  commitBtn?.addEventListener("click", () => {
+    const message = commitMessageInput?.value || currentCommitMessage;
+    if (message && message.trim() !== "") {
       vscode.postMessage({
-        type: "openInEditor",
-        content: currentCommitMessage,
+        type: "commitChanges",
+        message: message,
       });
     }
-  });
-
-  clearCommitBtn?.addEventListener("click", () => {
-    clearCommitMessage();
   });
 
   // Update current commit message when user edits the text area
@@ -145,6 +118,10 @@
         break;
       case "error":
         showStatus(message.message, false, "error");
+        showErrorInCommitInput(message.message);
+        break;
+      case "commitSuccess":
+        clearCommitMessage();
         break;
     }
   });
@@ -161,12 +138,14 @@
     updateFilesList(
       stagedFilesList,
       data.stagedFiles || [],
-      stagedFilesSection
+      stagedFilesSection,
+      'staged'
     );
     updateFilesList(
       modifiedFilesList,
       data.modifiedFiles || [],
-      modifiedFilesSection
+      modifiedFilesSection,
+      'modified'
     );
 
     // Enable/disable generate button based on changes
@@ -190,7 +169,7 @@
     hideStatus();
   }
 
-  function updateFilesList(listElement, files, sectionElement) {
+  function updateFilesList(listElement, files, sectionElement, fileType = 'staged') {
     if (!listElement || !sectionElement) {
       return;
     }
@@ -240,6 +219,23 @@
 
       fileItem.appendChild(iconSpan);
       fileItem.appendChild(nameSpan);
+      
+      // Add stage button for modified files only
+      if (fileType === 'modified' && file.status !== 'deleted') {
+        const stageBtn = document.createElement("button");
+        stageBtn.className = "btn-stage-file";
+        stageBtn.textContent = "+";
+        stageBtn.title = "Stage this file";
+        stageBtn.addEventListener("click", (e) => {
+          e.stopPropagation(); // Prevent file opening
+          vscode.postMessage({
+            type: "stageFile",
+            filePath: file.filePath,
+          });
+        });
+        fileItem.appendChild(stageBtn);
+      }
+      
       fileItem.appendChild(statusSpan);
 
       // Add click handler to open file (except for deleted files)
@@ -389,12 +385,7 @@
 
     if (commitMessageInput) {
       commitMessageInput.value = data.fullMessage;
-      commitMessageInput.readOnly = false;
-      commitMessageInput.placeholder = "Edit your commit message here...";
-    }
-
-    if (commitActions) {
-      commitActions.style.display = "flex";
+      commitMessageInput.classList.remove("error");
     }
 
     hideStatus();
@@ -406,12 +397,16 @@
     currentCommitMessage = "";
     if (commitMessageInput) {
       commitMessageInput.value = "";
-      commitMessageInput.readOnly = true;
-      commitMessageInput.placeholder = "Generated commit message will appear here...";
+      commitMessageInput.classList.remove("error");
     }
-    if (commitActions) {
-      commitActions.style.display = "none";
+  }
+
+  function showErrorInCommitInput(errorMessage) {
+    if (commitMessageInput) {
+      commitMessageInput.value = `❌ Error: ${errorMessage}`;
+      commitMessageInput.classList.add("error");
     }
+    currentCommitMessage = "";
   }
 
   function showStatus(message, loading = false, type = "info") {
