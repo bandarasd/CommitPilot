@@ -4,25 +4,81 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
+  // Helper functions
+  const dom = {
+    get: (id) => document.getElementById(id),
+    query: (selector) => document.querySelector(selector),
+    addClass: (element, className) => element?.classList.add(className),
+    removeClass: (element, className) => element?.classList.remove(className),
+    hasClass: (element, className) => element?.classList.contains(className),
+    toggle: (element, className) => element?.classList.toggle(className),
+  };
+
+  const vscodeAPI = {
+    send: (type, data = {}) => vscode.postMessage({ type, ...data }),
+    sendMessage: (type, message) => vscode.postMessage({ type, message }),
+  };
+
+  const status = {
+    show: (message, loading = false, type = "info") =>
+      showStatus(message, loading, type),
+    hide: () => hideStatus(),
+    error: (message) => showStatus(message, false, "error"),
+    success: (message) => showStatus(message, false, "success"),
+  };
+
+  // File icon mapping
+  const fileIcons = {
+    js: "codicon-symbol-method",
+    ts: "codicon-symbol-interface",
+    tsx: "codicon-symbol-class",
+    jsx: "codicon-symbol-class",
+    html: "codicon-browser",
+    css: "codicon-symbol-color",
+    scss: "codicon-symbol-color",
+    sass: "codicon-symbol-color",
+    json: "codicon-json",
+    xml: "codicon-code",
+    yaml: "codicon-gear",
+    yml: "codicon-gear",
+    md: "codicon-markdown",
+    txt: "codicon-file-text",
+    png: "codicon-file-media",
+    jpg: "codicon-file-media",
+    jpeg: "codicon-file-media",
+    gif: "codicon-file-media",
+    svg: "codicon-file-media",
+    py: "codicon-symbol-method",
+    java: "codicon-symbol-class",
+    cpp: "codicon-symbol-structure",
+    c: "codicon-symbol-structure",
+    go: "codicon-symbol-method",
+    rs: "codicon-symbol-structure",
+    php: "codicon-symbol-method",
+  };
+
+  const statusMap = {
+    added: "A",
+    modified: "M",
+    deleted: "D",
+    renamed: "R",
+    untracked: "U",
+  };
+
   // Wait for DOM to be fully loaded
   function initializeExtension() {
     // DOM Elements
-    const generateCommitBtn = document.getElementById("generate-commit-btn");
-    const refreshBtn = document.getElementById("refresh-btn");
-    const commitBtn = document.getElementById("commit-btn");
-    const commitMessageInput = document.getElementById("commit-message-input");
-    const commitActions = document.querySelector(".commit-actions");
-    const statusMessage = document.getElementById("status-message");
-    const stagedCount = document.getElementById("staged-count");
-    const modifiedCount = document.getElementById("modified-count");
-    const stagedFilesSection = document.getElementById("staged-files-section");
-    const modifiedFilesSection = document.getElementById(
-      "modified-files-section"
-    );
-    const stagedFilesList = document.getElementById("staged-files-list");
-    const modifiedFilesList = document.getElementById("modified-files-list");
-    const stageAllBtn = document.getElementById("stage-all-btn");
-    const loadingLine = document.getElementById("loading-line");
+    const generateCommitBtn = dom.get("generate-commit-btn");
+    const refreshBtn = dom.get("refresh-btn");
+    const commitBtn = dom.get("commit-btn");
+    const commitMessageInput = dom.get("commit-message-input");
+    const stagedCount = dom.get("staged-count");
+    const modifiedCount = dom.get("modified-count");
+    const stagedFilesSection = dom.get("staged-files-section");
+    const modifiedFilesSection = dom.get("modified-files-section");
+    const stagedFilesList = dom.get("staged-files-list");
+    const modifiedFilesList = dom.get("modified-files-list");
+    const stageAllBtn = dom.get("stage-all-btn");
 
     let currentCommitMessage = "";
 
@@ -75,56 +131,32 @@
     }
 
     // Event Listeners
-    generateCommitBtn?.addEventListener("click", () => {
-      vscode.postMessage({ type: "generateCommitMessage" });
-    });
-
+    generateCommitBtn?.addEventListener("click", () =>
+      vscodeAPI.send("generateCommitMessage")
+    );
     refreshBtn?.addEventListener("click", () => {
-      vscode.postMessage({ type: "refresh" });
-      showStatus("Refreshing...", false);
+      vscodeAPI.send("refresh");
+      status.show("Refreshing...");
     });
 
-    if (commitBtn) {
-      commitBtn.addEventListener("click", () => {
-        const message = commitMessageInput?.value || currentCommitMessage;
-        if (message && message.trim() !== "") {
-          vscode.postMessage({
-            type: "commitChanges",
-            message: message,
-          });
-        } else {
-          // Show error if no commit message
-          showStatus("Please enter a commit message", false, "error");
-          setTimeout(() => hideStatus(), 3000);
-        }
-      });
-    } // Update current commit message when user edits the text area
+    commitBtn?.addEventListener("click", () => {
+      const message = commitMessageInput?.value || currentCommitMessage;
+      if (message?.trim()) {
+        vscodeAPI.sendMessage("commitChanges", message);
+      } else {
+        status.error("Please enter a commit message");
+        setTimeout(() => status.hide(), 3000);
+      }
+    });
+
     commitMessageInput?.addEventListener("input", (e) => {
       currentCommitMessage = e.target.value;
-      // Auto-expand textarea as user types
       autoExpandTextarea(e.target);
     });
 
-    // Auto-expand textarea function
-    function autoExpandTextarea(textarea) {
-      if (!textarea) {
-        return;
-      }
-
-      // Reset height to calculate new height
-      textarea.style.height = "auto";
-
-      // Calculate the new height based on scroll height
-      const newHeight = Math.min(textarea.scrollHeight, 200); // Max 200px
-      const minHeight = 60; // Min 60px
-
-      // Set the height to the larger of calculated height or minimum height
-      textarea.style.height = Math.max(newHeight, minHeight) + "px";
-    }
-
     stageAllBtn?.addEventListener("click", () => {
-      vscode.postMessage({ type: "stageAllChanges" });
-      showStatus("Staging all changes...", false);
+      vscodeAPI.send("stageAllChanges");
+      status.show("Staging all changes...");
     });
 
     // Handle messages from the extension
@@ -269,11 +301,8 @@
           stageBtn.textContent = "+";
           stageBtn.title = "Stage this file";
           stageBtn.addEventListener("click", (e) => {
-            e.stopPropagation(); // Prevent file opening
-            vscode.postMessage({
-              type: "stageFile",
-              filePath: file.filePath,
-            });
+            e.stopPropagation();
+            vscodeAPI.send("stageFile", { filePath: file.filePath });
           });
           fileItem.appendChild(stageBtn);
         }
@@ -282,12 +311,9 @@
 
         // Add click handler to open file (except for deleted files)
         if (file.status !== "deleted") {
-          fileItem.addEventListener("click", () => {
-            vscode.postMessage({
-              type: "openFile",
-              filePath: file.filePath,
-            });
-          });
+          fileItem.addEventListener("click", () =>
+            vscodeAPI.send("openFile", { filePath: file.filePath })
+          );
         }
 
         listElement.appendChild(fileItem);
@@ -332,121 +358,38 @@
 
     function getFileIconClass(fileName) {
       const ext = fileName.split(".").pop()?.toLowerCase();
-
-      // Return VS Code codicon class names
-      switch (ext) {
-        // JavaScript/TypeScript
-        case "js":
-          return "codicon-symbol-method";
-        case "ts":
-          return "codicon-symbol-interface";
-        case "tsx":
-        case "jsx":
-          return "codicon-symbol-class";
-
-        // Web files
-        case "html":
-          return "codicon-browser";
-        case "css":
-          return "codicon-symbol-color";
-        case "scss":
-        case "sass":
-          return "codicon-symbol-color";
-
-        // Config files
-        case "json":
-          return "codicon-json";
-        case "xml":
-          return "codicon-code";
-        case "yaml":
-        case "yml":
-          return "codicon-gear";
-
-        // Documentation
-        case "md":
-          return "codicon-markdown";
-        case "txt":
-          return "codicon-file-text";
-
-        // Images
-        case "png":
-        case "jpg":
-        case "jpeg":
-        case "gif":
-        case "svg":
-          return "codicon-file-media";
-
-        // Other languages
-        case "py":
-          return "codicon-symbol-method";
-        case "java":
-          return "codicon-symbol-class";
-        case "cpp":
-        case "c":
-          return "codicon-symbol-structure";
-        case "go":
-          return "codicon-symbol-method";
-        case "rs":
-          return "codicon-symbol-structure";
-        case "php":
-          return "codicon-symbol-method";
-
-        // Default
-        default:
-          if (fileName.startsWith(".")) {
-            return "codicon-gear"; // Config files
-          }
-          return "codicon-file"; // Generic file
+      if (fileName.startsWith(".")) {
+        return "codicon-gear";
       }
+      return fileIcons[ext] || "codicon-file";
     }
 
     function getStatusLetter(status, statusSymbol) {
-      // Map status to single letter for better UX
-      switch (status) {
-        case "added":
-          return "A";
-        case "modified":
-          return "M";
-        case "deleted":
-          return "D";
-        case "renamed":
-          return "R";
-        case "untracked":
-          return "U";
-        default:
-          // Fallback to status symbol if available, otherwise M
-          if (
-            statusSymbol &&
-            statusSymbol.trim() !== "" &&
-            statusSymbol !== "??"
-          ) {
-            return statusSymbol.charAt(0);
-          }
-          return "M";
+      if (statusMap[status]) {
+        return statusMap[status];
       }
+      if (statusSymbol && statusSymbol.trim() !== "" && statusSymbol !== "??") {
+        return statusSymbol.charAt(0);
+      }
+      return "M";
     }
 
     function showCommitMessage(data) {
       currentCommitMessage = data.fullMessage;
-
       if (commitMessageInput) {
         commitMessageInput.value = data.fullMessage;
-        commitMessageInput.classList.remove("error");
-        // Auto-expand textarea based on content
+        dom.removeClass(commitMessageInput, "error");
         autoExpandTextarea(commitMessageInput);
       }
-
-      hideStatus();
-      showStatus("Commit message generated successfully!", false, "success");
-      setTimeout(() => hideStatus(), 3000);
+      status.success("Commit message generated successfully!");
+      setTimeout(() => status.hide(), 3000);
     }
 
     function clearCommitMessage() {
       currentCommitMessage = "";
       if (commitMessageInput) {
         commitMessageInput.value = "";
-        commitMessageInput.classList.remove("error");
-        // Reset height to minimum
+        dom.removeClass(commitMessageInput, "error");
         commitMessageInput.style.height = "60px";
       }
     }
@@ -454,48 +397,45 @@
     function showErrorInCommitInput(errorMessage) {
       if (commitMessageInput) {
         commitMessageInput.value = `❌ Error: ${errorMessage}`;
-        commitMessageInput.classList.add("error");
-        // Auto-expand for error message
+        dom.addClass(commitMessageInput, "error");
         autoExpandTextarea(commitMessageInput);
       }
       currentCommitMessage = "";
     }
 
     function showStatus(message, loading = false, type = "info") {
+      const statusMessage = dom.get("status-message");
+      const loadingLine = dom.get("loading-line");
+
       if (statusMessage) {
         statusMessage.textContent = message;
         statusMessage.className = `status-message ${type}`;
         statusMessage.style.display = "block";
       }
 
-      // Update loading line and generate button state
       if (loadingLine) {
         loadingLine.style.display = loading ? "block" : "none";
       }
 
       if (generateCommitBtn) {
-        if (loading) {
-          generateCommitBtn.disabled = true;
-          generateCommitBtn.style.opacity = "0.5";
-        } else {
-          generateCommitBtn.style.opacity = "1";
-          // Re-enable based on git status
-          vscode.postMessage({ type: "getGitStatus" });
+        generateCommitBtn.disabled = loading;
+        generateCommitBtn.style.opacity = loading ? "0.5" : "1";
+        if (!loading) {
+          vscodeAPI.send("getGitStatus");
         }
       }
     }
 
     function hideStatus() {
+      const statusMessage = dom.get("status-message");
       if (statusMessage) {
         statusMessage.style.display = "none";
       }
     }
 
     // Initialize
-    vscode.postMessage({ type: "getGitStatus" });
-
-    // Initial auto-expand in case there's existing content
-    if (commitMessageInput && commitMessageInput.value) {
+    vscodeAPI.send("getGitStatus");
+    if (commitMessageInput?.value) {
       autoExpandTextarea(commitMessageInput);
     }
   }

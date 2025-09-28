@@ -13,8 +13,36 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
     private readonly _extensionUri: vscode.Uri,
     private readonly context: vscode.ExtensionContext
   ) {
-    // Initialize services
     this.initializeServices();
+  }
+
+  // Helper functions to reduce code duplication
+  private checkGitService(
+    errorMessage: string = "Git service not initialized. Please open a workspace."
+  ): boolean {
+    if (!this.gitService) {
+      this.postMessage({ type: "error", message: errorMessage });
+      return false;
+    }
+    return true;
+  }
+
+  private showStatus(
+    message: string,
+    loading: boolean = false,
+    hideAfter?: number
+  ) {
+    this.postMessage({ type: "status", message, loading });
+    if (hideAfter) {
+      setTimeout(
+        () => this.postMessage({ type: "status", message: "", loading: false }),
+        hideAfter
+      );
+    }
+  }
+
+  private showError(message: string) {
+    this.postMessage({ type: "error", message });
   }
 
   private initializeServices() {
@@ -76,53 +104,38 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 
   private async handleGenerateCommitMessage() {
     if (!this.gitService || !this.aiService) {
-      this.postMessage({
-        type: "error",
-        message: "Git service not initialized. Please open a workspace.",
-      });
+      if (!this.gitService) {
+        this.showError("Git service not initialized. Please open a workspace.");
+      }
+      if (!this.aiService) {
+        this.showError("AI service not initialized. Please open a workspace.");
+      }
       return;
     }
 
     try {
-      this.postMessage({
-        type: "status",
-        message: "Analyzing changes...",
-        loading: true,
-      });
-
-      // Get full git status including file details
+      this.showStatus("Analyzing changes...", true);
       const gitStatus = await this.gitService.getFullGitStatus();
 
       if (!gitStatus.hasChanges) {
-        this.postMessage({
-          type: "status",
-          message: "No changes found to commit.",
-          loading: false,
-        });
+        this.showStatus("No changes found to commit.");
         return;
       }
 
-      this.postMessage({
-        type: "status",
-        message: "Generating AI commit message...",
-        loading: true,
-      });
+      this.showStatus("Generating AI commit message...", true);
 
       // Use staged changes first, fallback to all changes
-      let diff = "";
-      let changedFiles: string[] = [];
+      const { diff, changedFiles } =
+        gitStatus.stagedFiles.length > 0
+          ? {
+              diff: (await this.gitService.getStagedChanges()).diff,
+              changedFiles: gitStatus.stagedFiles.map((f) => f.filePath),
+            }
+          : {
+              diff: (await this.gitService.getAllChanges()).diff,
+              changedFiles: gitStatus.modifiedFiles.map((f) => f.filePath),
+            };
 
-      if (gitStatus.stagedFiles.length > 0) {
-        const stagedChanges = await this.gitService.getStagedChanges();
-        diff = stagedChanges.diff;
-        changedFiles = gitStatus.stagedFiles.map((f) => f.filePath);
-      } else {
-        const allChanges = await this.gitService.getAllChanges();
-        diff = allChanges.diff;
-        changedFiles = gitStatus.modifiedFiles.map((f) => f.filePath);
-      }
-
-      // Generate commit message
       const commitMessage = await this.aiService.generateCommitMessage(
         diff,
         changedFiles
@@ -131,41 +144,37 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
       this.postMessage({
         type: "commitMessage",
         data: {
-          summary: commitMessage.summary,
-          description: commitMessage.description,
-          type: commitMessage.type,
+          ...commitMessage,
           fullMessage: `${commitMessage.summary}\n\n${commitMessage.description}`,
         },
       });
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to generate commit message: ${error}`,
-      });
+      this.showError(`Failed to generate commit message: ${error}`);
     }
   }
 
   private async handleGetGitStatus() {
+    const defaultStatus = {
+      staged: [],
+      modified: [],
+      hasChanges: false,
+      stagedFiles: [],
+      modifiedFiles: [],
+      stagedCount: 0,
+      modifiedCount: 0,
+    };
+
     if (!this.gitService) {
-      this.postMessage({
-        type: "gitStatus",
-        data: {
-          staged: [],
-          modified: [],
-          hasChanges: false,
-          stagedFiles: [],
-          modifiedFiles: [],
-        },
-      });
+      this.postMessage({ type: "gitStatus", data: defaultStatus });
       return;
     }
 
     try {
       const gitStatus = await this.gitService.getFullGitStatus();
-
       this.postMessage({
         type: "gitStatus",
         data: {
+          ...defaultStatus,
           staged: gitStatus.stagedFiles.map((f) => f.filePath),
           modified: gitStatus.modifiedFiles.map((f) => f.filePath),
           hasChanges: gitStatus.hasChanges,
@@ -176,21 +185,15 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
         },
       });
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to get git status: ${error}`,
-      });
+      this.showError(`Failed to get git status: ${error}`);
     }
   }
 
   private async handleOpenFile(filePath: string) {
     try {
       const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders || workspaceFolders.length === 0) {
-        this.postMessage({
-          type: "error",
-          message: "No workspace folder is open.",
-        });
+      if (!workspaceFolders?.length) {
+        this.showError("No workspace folder is open.");
         return;
       }
 
@@ -201,171 +204,73 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
         preserveFocus: false,
       });
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to open file: ${error}`,
-      });
+      this.showError(`Failed to open file: ${error}`);
     }
   }
 
   private async handleStageAllChanges() {
-    if (!this.gitService) {
-      this.postMessage({
-        type: "error",
-        message: "Git service not initialized. Please open a workspace.",
-      });
+    if (!this.checkGitService()) {
       return;
     }
 
     try {
-      this.postMessage({
-        type: "status",
-        message: "Staging all changes...",
-        loading: true,
-      });
-
-      await this.gitService.stageAllChanges();
-
-      this.postMessage({
-        type: "status",
-        message: "All changes staged successfully!",
-        loading: false,
-      });
-
-      // Refresh git status to update the UI
+      this.showStatus("Staging all changes...", true);
+      await this.gitService!.stageAllChanges();
+      this.showStatus("All changes staged successfully!", false, 2000);
       await this.handleGetGitStatus();
-
-      // Hide status message after 2 seconds
-      setTimeout(() => {
-        this.postMessage({
-          type: "status",
-          message: "",
-          loading: false,
-        });
-      }, 2000);
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to stage changes: ${error}`,
-      });
+      this.showError(`Failed to stage changes: ${error}`);
     }
   }
 
   private async handleCommitChanges(message: string) {
-    if (!this.gitService) {
-      this.postMessage({
-        type: "error",
-        message: "Git service not initialized. Please open a workspace.",
-      });
+    if (!this.checkGitService()) {
       return;
     }
-
-    if (!message || message.trim() === "") {
-      this.postMessage({
-        type: "error",
-        message: "Please provide a commit message.",
-      });
+    if (!message?.trim()) {
+      this.showError("Please provide a commit message.");
       return;
     }
 
     try {
-      this.postMessage({
-        type: "status",
-        message: "Committing changes...",
-        loading: true,
-      });
-
-      await this.gitService.commitChanges(message.trim());
-
-      this.postMessage({
-        type: "status",
-        message: "Changes committed successfully!",
-        loading: false,
-      });
-
-      // Clear the commit message and refresh git status
-      this.postMessage({
-        type: "commitSuccess",
-      });
-
+      this.showStatus("Committing changes...", true);
+      await this.gitService!.commitChanges(message.trim());
+      this.showStatus("Changes committed successfully!", false, 3000);
+      this.postMessage({ type: "commitSuccess" });
       await this.handleGetGitStatus();
-
-      // Hide status message after 3 seconds
-      setTimeout(() => {
-        this.postMessage({
-          type: "status",
-          message: "",
-          loading: false,
-        });
-      }, 3000);
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to commit changes: ${error}`,
-      });
+      this.showError(`Failed to commit changes: ${error}`);
     }
   }
 
   private async handleStageFile(filePath: string) {
-    if (!this.gitService) {
-      this.postMessage({
-        type: "error",
-        message: "Git service not initialized. Please open a workspace.",
-      });
+    if (!this.checkGitService()) {
       return;
     }
 
     try {
-      this.postMessage({
-        type: "status",
-        message: `Staging ${filePath.split("/").pop()}...`,
-        loading: true,
-      });
-
-      await this.gitService.stageFile(filePath);
-
-      this.postMessage({
-        type: "status",
-        message: "File staged successfully!",
-        loading: false,
-      });
-
-      // Refresh git status to update the UI
+      this.showStatus(`Staging ${filePath.split("/").pop()}...`, true);
+      await this.gitService!.stageFile(filePath);
+      this.showStatus("File staged successfully!", false, 2000);
       await this.handleGetGitStatus();
-
-      // Hide status message after 2 seconds
-      setTimeout(() => {
-        this.postMessage({
-          type: "status",
-          message: "",
-          loading: false,
-        });
-      }, 2000);
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to stage file: ${error}`,
-      });
+      this.showError(`Failed to stage file: ${error}`);
     }
   }
 
   private async handleOpenInEditor(content: string) {
     try {
       const doc = await vscode.workspace.openTextDocument({
-        content: content,
+        content,
         language: "plaintext",
       });
       await vscode.window.showTextDocument(doc);
     } catch (error) {
-      this.postMessage({
-        type: "error",
-        message: `Failed to open in editor: ${error}`,
-      });
+      this.showError(`Failed to open in editor: ${error}`);
     }
   }
 
   private async refresh() {
-    // Re-initialize services in case workspace changed
     this.initializeServices();
     await this.handleGetGitStatus();
   }
@@ -377,113 +282,80 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "src", "webview", "main.js")
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "src", "webview", "main.css")
     );
-
-    // Use a nonce to only allow a specific script to be run.
-    const nonce = getNonce();
+    const nonce = this.getNonce();
 
     return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link href="${styleUri}" rel="stylesheet">
-				<title>CommitPilot</title>
-			</head>
-			<body>
-				<div class="container">
-					<div class="header">
-						<h2>🚁 CommitPilot</h2>
-						<p class="subtitle">AI-Powered Commit Messages</p>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link href="${styleUri}" rel="stylesheet">
+	<title>CommitPilot</title>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<h2>🚁 CommitPilot</h2>
+			<p class="subtitle">AI-Powered Commit Messages</p>
+		</div>
+		<div class="commit-input-section">
+			<div class="commit-input-wrapper">
+				<div class="loading-line" id="loading-line" style="display: none;"></div>
+				<textarea id="commit-message-input" class="commit-input" placeholder="Type your commit message or click ✨ to generate one..." rows="3"></textarea>
+				<button id="generate-commit-btn" class="btn-generate-inline" title="Generate AI commit message">✨</button>
+			</div>
+			<div class="commit-actions">
+				<button id="commit-btn" class="btn btn-commit">▶ Commit</button>
+			</div>
+		</div>
+		<div class="status-section">
+			<div id="git-status">
+				<div class="status-header">
+					<div class="status-item"><span class="icon">📋</span><span id="staged-count">0 staged</span></div>
+					<div class="status-item"><span class="icon">📝</span><span id="modified-count">0 modified</span></div>
+				</div>
+				<div id="staged-files-section" class="files-section" style="display: none;">
+					<div class="section-header" data-section="staged">
+						<div class="section-header-content"><span class="section-icon">📋</span><span class="section-title">Staged Changes</span></div>
+						<span class="section-arrow expanded">▼</span>
 					</div>
-
-					<div class="commit-input-section">
-						<div class="commit-input-wrapper">
-							<div class="loading-line" id="loading-line" style="display: none;"></div>
-							<textarea 
-								id="commit-message-input" 
-								class="commit-input" 
-								placeholder="Type your commit message or click ✨ to generate one..."
-								rows="3"
-							></textarea>
-							<button id="generate-commit-btn" class="btn-generate-inline" title="Generate AI commit message">
-								✨
-							</button>
-						</div>
-						<div class="commit-actions">
-							<button id="commit-btn" class="btn btn-commit">▶ Commit</button>
-						</div>
+					<div id="staged-files-list" class="files-list"></div>
+				</div>
+				<div id="modified-files-section" class="files-section" style="display: none;">
+					<div class="section-header" data-section="modified">
+						<div class="section-header-content"><span class="section-icon">📝</span><span class="section-title">Modified Files</span></div>
+						<span class="section-arrow expanded">▼</span>
 					</div>
-
-					<div class="status-section">
-						<div id="git-status">
-							<div class="status-header">
-								<div class="status-item">
-									<span class="icon">📋</span>
-									<span id="staged-count">0 staged</span>
-								</div>
-								<div class="status-item">
-									<span class="icon">📝</span>
-									<span id="modified-count">0 modified</span>
-								</div>
-							</div>
-							
-							<div id="staged-files-section" class="files-section" style="display: none;">
-								<div class="section-header" data-section="staged">
-									<div class="section-header-content">
-										<span class="section-icon">📋</span>
-										<span class="section-title">Staged Changes</span>
-									</div>
-									<span class="section-arrow expanded">▼</span>
-								</div>
-								<div id="staged-files-list" class="files-list"></div>
-							</div>
-							
-							<div id="modified-files-section" class="files-section" style="display: none;">
-								<div class="section-header" data-section="modified">
-									<div class="section-header-content">
-										<span class="section-icon">📝</span>
-										<span class="section-title">Modified Files</span>
-									</div>
-									<span class="section-arrow expanded">▼</span>
-								</div>
-								<div id="modified-files-list" class="files-list"></div>
-								<div class="section-actions">
-									<button id="stage-all-btn" class="btn btn-stage" style="display: none;">
-										📤 Stage All Changes
-									</button>
-								</div>
-							</div>
-						</div>
-						<button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
-					</div>
-
-					<div id="status-message" class="status-message" style="display: none;"></div>
-
-					<div class="footer">
-						<small>Powered by OpenRouter & Grok AI</small>
+					<div id="modified-files-list" class="files-list"></div>
+					<div class="section-actions">
+						<button id="stage-all-btn" class="btn btn-stage" style="display: none;">📤 Stage All Changes</button>
 					</div>
 				</div>
-
-				<script nonce="${nonce}" src="${scriptUri}"></script>
-			</body>
-			</html>`;
+			</div>
+			<button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
+		</div>
+		<div id="status-message" class="status-message" style="display: none;"></div>
+		<div class="footer"><small>Powered by OpenRouter & Grok AI</small></div>
+	</div>
+	<script nonce="${nonce}" src="${scriptUri}"></script>
+</body>
+</html>`;
   }
-}
 
-function getNonce() {
-  let text = "";
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  private getNonce() {
+    let text = "";
+    const possible =
+      "ABCDEFGHIJ KLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
-  return text;
 }
