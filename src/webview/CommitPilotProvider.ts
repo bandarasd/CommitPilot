@@ -318,7 +318,7 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
     try {
       this.postMessage({
         type: "status",
-        message: `Staging ${filePath.split('/').pop()}...`,
+        message: `Staging ${filePath.split("/").pop()}...`,
         loading: true,
       });
 
@@ -418,7 +418,7 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 							</button>
 						</div>
 						<div class="commit-actions">
-							<button id="commit-btn" class="btn btn-commit">� Commit</button>
+							<button id="commit-btn" class="btn btn-commit">▶ Commit</button>
 						</div>
 					</div>
 

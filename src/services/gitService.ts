@@ -152,8 +152,14 @@ export class GitService {
         if (err) {
           if (stderr.includes("not a git repository")) {
             reject("This workspace is not a Git repository.");
+          } else if (
+            command.includes("git commit") ||
+            command.includes("git add")
+          ) {
+            // For critical commands like commit and add, we should report errors
+            reject(`Git command failed: ${stderr || err.message}`);
           } else {
-            // For some git commands, no output is normal (not an error)
+            // For some git commands like diff, no output is normal (not an error)
             resolve("");
           }
         } else {
