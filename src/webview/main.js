@@ -89,6 +89,10 @@
         type: "commitChanges",
         message: message,
       });
+    } else {
+      // Show error if no commit message
+      showStatus("Please enter a commit message", false, "error");
+      setTimeout(() => hideStatus(), 3000);
     }
   });
 
@@ -172,6 +176,14 @@
       generateCommitBtn.disabled = !data.hasChanges;
       generateCommitBtn.title = data.hasChanges 
         ? "Generate AI commit message" 
+        : "No changes to commit";
+    }
+
+    // Enable/disable commit button based on changes
+    if (commitBtn) {
+      commitBtn.disabled = !data.hasChanges;
+      commitBtn.title = data.hasChanges
+        ? "Commit changes"
         : "No changes to commit";
     }
 
