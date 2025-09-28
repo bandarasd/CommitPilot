@@ -58,6 +58,9 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
         case "openFile":
           await this.handleOpenFile(data.filePath);
           break;
+        case "stageAllChanges":
+          await this.handleStageAllChanges();
+          break;
       }
     });
 
@@ -199,6 +202,49 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private async handleStageAllChanges() {
+    if (!this.gitService) {
+      this.postMessage({
+        type: "error",
+        message: "Git service not initialized. Please open a workspace.",
+      });
+      return;
+    }
+
+    try {
+      this.postMessage({
+        type: "status",
+        message: "Staging all changes...",
+        loading: true,
+      });
+
+      await this.gitService.stageAllChanges();
+
+      this.postMessage({
+        type: "status",
+        message: "All changes staged successfully!",
+        loading: false,
+      });
+
+      // Refresh git status to update the UI
+      await this.handleGetGitStatus();
+
+      // Hide status message after 2 seconds
+      setTimeout(() => {
+        this.postMessage({
+          type: "status",
+          message: "",
+          loading: false,
+        });
+      }, 2000);
+    } catch (error) {
+      this.postMessage({
+        type: "error",
+        message: `Failed to stage changes: ${error}`,
+      });
+    }
+  }
+
   private async handleOpenInEditor(content: string) {
     try {
       const doc = await vscode.workspace.openTextDocument({
@@ -254,6 +300,27 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 						<p class="subtitle">AI-Powered Commit Messages</p>
 					</div>
 
+					<div class="commit-input-section">
+						<div class="commit-input-wrapper">
+							<div class="loading-line" id="loading-line" style="display: none;"></div>
+							<textarea 
+								id="commit-message-input" 
+								class="commit-input" 
+								placeholder="Generated commit message will appear here..."
+								rows="3"
+								readonly
+							></textarea>
+							<button id="generate-commit-btn" class="btn-generate-inline" title="Generate AI commit message">
+								✨
+							</button>
+						</div>
+						<div class="commit-actions" style="display: none;">
+							<button id="copy-commit-btn" class="btn btn-small">📋 Copy</button>
+							<button id="edit-commit-btn" class="btn btn-small">📝 Edit</button>
+							<button id="clear-commit-btn" class="btn btn-small">🗑️ Clear</button>
+						</div>
+					</div>
+
 					<div class="status-section">
 						<div id="git-status">
 							<div class="status-header">
@@ -287,33 +354,17 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 									<span class="section-arrow expanded">▼</span>
 								</div>
 								<div id="modified-files-list" class="files-list"></div>
+								<div class="section-actions">
+									<button id="stage-all-btn" class="btn btn-stage" style="display: none;">
+										📤 Stage All Changes
+									</button>
+								</div>
 							</div>
 						</div>
 						<button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
 					</div>
 
-					<div class="actions-section">
-						<button id="generate-btn" class="btn btn-primary" disabled>
-							<span class="btn-text">✨ Generate Commit Message</span>
-							<span class="loading-spinner" style="display: none;">⏳</span>
-						</button>
-					</div>
-
 					<div id="status-message" class="status-message" style="display: none;"></div>
-
-					<div id="commit-result" class="result-section" style="display: none;">
-						<div class="result-header">
-							<h3>Generated Message</h3>
-							<div class="result-actions">
-								<button id="copy-btn" class="btn btn-small">📋 Copy</button>
-								<button id="edit-btn" class="btn btn-small">📝 Edit</button>
-							</div>
-						</div>
-						<div class="commit-preview">
-							<div class="commit-summary" id="commit-summary"></div>
-							<div class="commit-description" id="commit-description"></div>
-						</div>
-					</div>
 
 					<div class="footer">
 						<small>Powered by OpenRouter & Grok AI</small>

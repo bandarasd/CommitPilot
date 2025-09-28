@@ -90,6 +90,10 @@ export class GitService {
     };
   }
 
+  async stageAllChanges(): Promise<void> {
+    await this.executeGitCommand("git add .");
+  }
+
   private parseFileStatus(statusOutput: string): FileStatus[] {
     if (!statusOutput.trim()) {
       return [];

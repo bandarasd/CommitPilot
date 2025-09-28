@@ -5,22 +5,24 @@
   const vscode = acquireVsCodeApi();
 
   // DOM Elements
-  const generateBtn = document.getElementById("generate-btn");
+  const generateCommitBtn = document.getElementById("generate-commit-btn");
   const refreshBtn = document.getElementById("refresh-btn");
-  const copyBtn = document.getElementById("copy-btn");
-  const editBtn = document.getElementById("edit-btn");
+  const copyCommitBtn = document.getElementById("copy-commit-btn");
+  const editCommitBtn = document.getElementById("edit-commit-btn");
+  const clearCommitBtn = document.getElementById("clear-commit-btn");
+  const commitMessageInput = document.getElementById("commit-message-input");
+  const commitActions = document.querySelector(".commit-actions");
   const statusMessage = document.getElementById("status-message");
-  const commitResult = document.getElementById("commit-result");
   const stagedCount = document.getElementById("staged-count");
   const modifiedCount = document.getElementById("modified-count");
-  const commitSummary = document.getElementById("commit-summary");
-  const commitDescription = document.getElementById("commit-description");
   const stagedFilesSection = document.getElementById("staged-files-section");
   const modifiedFilesSection = document.getElementById(
     "modified-files-section"
   );
   const stagedFilesList = document.getElementById("staged-files-list");
   const modifiedFilesList = document.getElementById("modified-files-list");
+  const stageAllBtn = document.getElementById("stage-all-btn");
+  const loadingLine = document.getElementById("loading-line");
 
   let currentCommitMessage = "";
 
@@ -39,6 +41,10 @@
     const filesList = sectionType === "staged" 
       ? stagedFilesList 
       : modifiedFilesList;
+    const sectionElement = sectionType === "staged"
+      ? document.getElementById("staged-files-section")
+      : document.getElementById("modified-files-section");
+    const sectionActions = sectionElement?.querySelector(".section-actions");
     
     if (!filesList || !arrow) {
       return;
@@ -54,16 +60,22 @@
       filesList.classList.remove("collapsed");
       arrow.classList.add("expanded");
       arrow.textContent = "▼";
+      if (sectionActions) {
+        sectionActions.classList.remove("collapsed");
+      }
     } else {
       // Collapse
       filesList.classList.add("collapsed");
       arrow.classList.remove("expanded");
       arrow.textContent = "▼";
+      if (sectionActions) {
+        sectionActions.classList.add("collapsed");
+      }
     }
   }
 
   // Event Listeners
-  generateBtn?.addEventListener("click", () => {
+  generateCommitBtn?.addEventListener("click", () => {
     vscode.postMessage({ type: "generateCommitMessage" });
   });
 
@@ -72,7 +84,7 @@
     showStatus("Refreshing...", false);
   });
 
-  copyBtn?.addEventListener("click", () => {
+  copyCommitBtn?.addEventListener("click", () => {
     if (currentCommitMessage) {
       navigator.clipboard
         .writeText(currentCommitMessage)
@@ -94,13 +106,27 @@
     }
   });
 
-  editBtn?.addEventListener("click", () => {
+  editCommitBtn?.addEventListener("click", () => {
     if (currentCommitMessage) {
       vscode.postMessage({
         type: "openInEditor",
         content: currentCommitMessage,
       });
     }
+  });
+
+  clearCommitBtn?.addEventListener("click", () => {
+    clearCommitMessage();
+  });
+
+  // Update current commit message when user edits the text area
+  commitMessageInput?.addEventListener("input", (e) => {
+    currentCommitMessage = e.target.value;
+  });
+
+  stageAllBtn?.addEventListener("click", () => {
+    vscode.postMessage({ type: "stageAllChanges" });
+    showStatus("Staging all changes...", false);
   });
 
   // Handle messages from the extension
@@ -144,14 +170,20 @@
     );
 
     // Enable/disable generate button based on changes
-    if (generateBtn) {
-      generateBtn.disabled = !data.hasChanges;
-      if (data.hasChanges) {
-        generateBtn.querySelector(".btn-text").textContent =
-          "✨ Generate Commit Message";
+    if (generateCommitBtn) {
+      generateCommitBtn.disabled = !data.hasChanges;
+      generateCommitBtn.title = data.hasChanges 
+        ? "Generate AI commit message" 
+        : "No changes to commit";
+    }
+
+    // Show/hide stage button based on modified files
+    if (stageAllBtn) {
+      if (data.modifiedCount > 0) {
+        stageAllBtn.style.display = "block";
+        stageAllBtn.textContent = `📤 Stage All Changes (${data.modifiedCount})`;
       } else {
-        generateBtn.querySelector(".btn-text").textContent =
-          "No changes to commit";
+        stageAllBtn.style.display = "none";
       }
     }
 
@@ -174,6 +206,7 @@
     // Store current collapsed state before showing section
     const wasCollapsed = listElement.classList.contains("collapsed");
     const wasNeverInteracted = !listElement.classList.contains("user-interacted");
+    const sectionActions = sectionElement?.querySelector(".section-actions");
     
     sectionElement.style.display = "block";
 
@@ -231,6 +264,9 @@
         arrow.classList.add("expanded");
         arrow.textContent = "▼";
       }
+      if (sectionActions) {
+        sectionActions.classList.remove("collapsed");
+      }
     } else if (wasCollapsed) {
       // User had collapsed it - keep it collapsed
       listElement.classList.add("collapsed");
@@ -239,6 +275,9 @@
         arrow.classList.remove("expanded");
         arrow.textContent = "▼";
       }
+      if (sectionActions) {
+        sectionActions.classList.add("collapsed");
+      }
     } else {
       // User had expanded it - keep it expanded
       listElement.classList.remove("collapsed");
@@ -246,6 +285,9 @@
       if (arrow) {
         arrow.classList.add("expanded");
         arrow.textContent = "▼";
+      }
+      if (sectionActions) {
+        sectionActions.classList.remove("collapsed");
       }
     }
   }
@@ -345,20 +387,31 @@
   function showCommitMessage(data) {
     currentCommitMessage = data.fullMessage;
 
-    if (commitSummary) {
-      commitSummary.textContent = data.summary;
-    }
-    if (commitDescription) {
-      commitDescription.textContent = data.description;
+    if (commitMessageInput) {
+      commitMessageInput.value = data.fullMessage;
+      commitMessageInput.readOnly = false;
+      commitMessageInput.placeholder = "Edit your commit message here...";
     }
 
-    if (commitResult) {
-      commitResult.style.display = "block";
+    if (commitActions) {
+      commitActions.style.display = "flex";
     }
 
     hideStatus();
     showStatus("Commit message generated successfully!", false, "success");
     setTimeout(() => hideStatus(), 3000);
+  }
+
+  function clearCommitMessage() {
+    currentCommitMessage = "";
+    if (commitMessageInput) {
+      commitMessageInput.value = "";
+      commitMessageInput.readOnly = true;
+      commitMessageInput.placeholder = "Generated commit message will appear here...";
+    }
+    if (commitActions) {
+      commitActions.style.display = "none";
+    }
   }
 
   function showStatus(message, loading = false, type = "info") {
@@ -368,18 +421,17 @@
       statusMessage.style.display = "block";
     }
 
-    // Update generate button loading state
-    if (generateBtn) {
-      const btnText = generateBtn.querySelector(".btn-text");
-      const spinner = generateBtn.querySelector(".loading-spinner");
+    // Update loading line and generate button state
+    if (loadingLine) {
+      loadingLine.style.display = loading ? "block" : "none";
+    }
 
+    if (generateCommitBtn) {
       if (loading) {
-        btnText.style.display = "none";
-        spinner.style.display = "inline-block";
-        generateBtn.disabled = true;
+        generateCommitBtn.disabled = true;
+        generateCommitBtn.style.opacity = "0.5";
       } else {
-        btnText.style.display = "inline-block";
-        spinner.style.display = "none";
+        generateCommitBtn.style.opacity = "1";
         // Re-enable based on git status
         vscode.postMessage({ type: "getGitStatus" });
       }
