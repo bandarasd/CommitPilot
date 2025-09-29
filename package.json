@@ -1,14 +1,34 @@
 {
   "name": "commitpilot",
   "displayName": "CommitPilot",
-  "description": "",
+  "description": "AI-powered Git commit message generator for VS Code. Generate meaningful commit messages using AI based on your staged changes.",
   "version": "0.0.1",
+  "publisher": "DananjayaBandara",
   "engines": {
     "vscode": "^1.104.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "SCM Providers"
   ],
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "assistant",
+    "openai",
+    "automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bandarasd/CommitPilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bandarasd/CommitPilot/issues"
+  },
+  "homepage": "https://github.com/bandarasd/CommitPilot#readme",
+  "license": "MIT",
+  "icon": "icon.png",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
@@ -79,6 +99,7 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.2",
     "eslint": "^9.34.0",
     "typescript": "^5.9.2"
   },
