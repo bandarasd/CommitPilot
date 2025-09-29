@@ -79,6 +79,9 @@
     const stagedFilesList = dom.get("staged-files-list");
     const modifiedFilesList = dom.get("modified-files-list");
     const stageAllBtn = dom.get("stage-all-btn");
+    const openSettingsBtn = dom.get("open-settings-btn");
+    const apiKeySetup = dom.get("api-key-setup");
+    const mainContent = dom.get("main-content");
 
     let currentCommitMessage = "";
 
@@ -159,6 +162,10 @@
       status.show("Staging all changes...");
     });
 
+    openSettingsBtn?.addEventListener("click", () => {
+      vscodeAPI.send("openSettings");
+    });
+
     // Handle messages from the extension
     window.addEventListener("message", (event) => {
       const message = event.data;
@@ -179,6 +186,9 @@
           break;
         case "commitSuccess":
           clearCommitMessage();
+          break;
+        case "showApiKeySetup":
+          showApiKeySetup();
           break;
       }
     });
@@ -430,6 +440,20 @@
       const statusMessage = dom.get("status-message");
       if (statusMessage) {
         statusMessage.style.display = "none";
+      }
+    }
+
+    function showApiKeySetup() {
+      if (apiKeySetup && mainContent) {
+        apiKeySetup.style.display = "block";
+        mainContent.style.display = "none";
+      }
+    }
+
+    function hideApiKeySetup() {
+      if (apiKeySetup && mainContent) {
+        apiKeySetup.style.display = "none";
+        mainContent.style.display = "block";
       }
     }
 

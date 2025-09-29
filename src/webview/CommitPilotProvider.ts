@@ -92,6 +92,9 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
         case "commitChanges":
           await this.handleCommitChanges(data.message);
           break;
+        case "openSettings":
+          await vscode.commands.executeCommand('workbench.action.openSettings', 'commitpilot');
+          break;
         case "stageFile":
           await this.handleStageFile(data.filePath);
           break;
@@ -103,6 +106,19 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
   }
 
   private async handleGenerateCommitMessage() {
+    // Check if API key is configured
+    const config = vscode.workspace.getConfiguration('commitpilot');
+    const apiKey = config.get<string>('openaiApiKey');
+    
+    if (!apiKey || apiKey.trim() === '') {
+      this.showError('OpenAI API key not configured. Please set your API key in settings.');
+      this.postMessage({
+        type: 'showApiKeySetup',
+        message: 'API key required'
+      });
+      return;
+    }
+
     if (!this.gitService || !this.aiService) {
       if (!this.gitService) {
         this.showError("Git service not initialized. Please open a workspace.");
@@ -305,6 +321,25 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 			<h2>🚁 CommitPilot</h2>
 			<p class="subtitle">AI-Powered Commit Messages</p>
 		</div>
+		
+		<div id="api-key-setup" class="api-key-setup" style="display: none;">
+			<div class="setup-message">
+				<h3>⚙️ Setup Required</h3>
+				<p>To use CommitPilot, you need to configure your OpenAI API key.</p>
+				<div class="setup-steps">
+					<p><strong>Steps:</strong></p>
+					<ol>
+						<li>Get an API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></li>
+						<li>Click the button below to open settings</li>
+						<li>Set your API key in "CommitPilot: OpenAI API Key"</li>
+						<li>Reload the extension</li>
+					</ol>
+				</div>
+				<button id="open-settings-btn" class="btn btn-primary">⚙️ Open Settings</button>
+			</div>
+		</div>
+		
+		<div id="main-content" class="main-content">
 		<div class="commit-input-section">
 			<div class="commit-input-wrapper">
 				<div class="loading-line" id="loading-line" style="display: none;"></div>
@@ -342,7 +377,8 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 			<button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
 		</div>
 		<div id="status-message" class="status-message" style="display: none;"></div>
-		<div class="footer"><small>Powered by OpenRouter & Grok AI</small></div>
+		<div class="footer"><small>Powered by OpenAI</small></div>
+		</div>
 	</div>
 	<script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

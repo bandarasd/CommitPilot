@@ -19,35 +19,44 @@ AI-powered Git commit message generator for Visual Studio Code. Let AI help you 
 
 ## Setup
 
-1. Get an OpenAI API key from [OpenAI Platform](https://platform.openai.com/)
-2. Create a `.env` file in your project root or set environment variables:
-   ```
-   OPENAI_API_KEY=your_api_key_here
-   ```
+1. Install the extension from VS Code Marketplace
+2. Open the CommitPilot sidebar
+3. If no API key is configured, you'll see a setup screen with instructions
+4. Get an OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+5. Click "Open Settings" or use Command Palette: `CommitPilot: Open Settings`
+6. Set your API key in **"CommitPilot: OpenAI API Key"**
+7. Optionally configure:
+   - **Model**: Choose from gpt-3.5-turbo, gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini
+   - **Max Tokens**: Control response length (50-500 tokens)
+
+> **Note**: The extension supports both OpenAI API keys and OpenRouter keys. It will automatically detect and configure the appropriate endpoint.
 
 ## Usage
 
-### Method 1: Command Palette
+### Method 1: CommitPilot Sidebar (Recommended)
+
+1. Click the extention in the Activity Bar to open CommitPilot sidebar
+2. Stage your changes in Git
+3. Click the sparkle icon (✨) next to the commit message input
+4. AI will analyze your changes and generate a commit message
+5. Review and edit if needed, then click "Commit"
+
+### Method 2: Command Palette
 
 1. Stage your changes in Git
 2. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
 3. Type "CommitPilot: Generate AI Commit Message"
 4. AI will analyze your changes and suggest a commit message
 
-### Method 2: Keyboard Shortcut
+### Method 3: Keyboard Shortcut
 
 1. Stage your changes in Git
 2. Press `Ctrl+Shift+G Ctrl+M` (Windows/Linux) or `Cmd+Shift+G Cmd+M` (Mac)
 
-### Method 3: Source Control Panel
+### Method 4: Source Control Panel
 
 1. Stage your changes in Git
 2. Click the sparkle icon (✨) in the Source Control panel toolbar
-
-### Method 4: CommitPilot Sidebar
-
-1. Open the CommitPilot sidebar from the Activity Bar
-2. Use the AI Commit Generator panel
 
 ## Commands
 
@@ -55,20 +64,18 @@ AI-powered Git commit message generator for Visual Studio Code. Let AI help you 
 | ----------------------------------- | -------------------------- | --------------------- |
 | `commitpilot.generateCommitMessage` | Generate AI commit message | `Ctrl+Shift+G Ctrl+M` |
 | `commitpilot.getDiff`               | Get staged Git diff        | -                     |
+| `commitpilot.openSettings`          | Open CommitPilot settings  | -                     |
 | `commitpilot.test`                  | Test extension             | -                     |
-
-## Requirements
-
-- Visual Studio Code 1.104.0 or higher
-- Git repository
-- OpenAI API key
-- Node.js (for development)
 
 ## Configuration
 
-The extension uses your OpenAI API key from environment variables. Make sure to set:
+Access settings via: **File > Preferences > Settings** and search for "CommitPilot" or use the command `CommitPilot: Open Settings`.
 
-- `OPENAI_API_KEY`: Your OpenAI API key
+| Setting                    | Type   | Default           | Description                                                          |
+| -------------------------- | ------ | ----------------- | -------------------------------------------------------------------- |
+| `commitpilot.openaiApiKey` | string | `""`              | Your OpenAI API key for generating commit messages                   |
+| `commitpilot.openaiModel`  | string | `"gpt-3.5-turbo"` | OpenAI model: gpt-3.5-turbo, gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini |
+| `commitpilot.maxTokens`    | number | `150`             | Maximum tokens for commit message generation (50-500)                |
 
 ## Contributing
 

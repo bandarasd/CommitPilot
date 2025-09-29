@@ -29,7 +29,10 @@
   "homepage": "https://github.com/bandarasd/CommitPilot#readme",
   "license": "MIT",
   "icon": "icon.png",
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:commitpilot.sidebar",
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -45,6 +48,10 @@
       {
         "command": "commitpilot.test",
         "title": "CommitPilot: Test Extension"
+      },
+      {
+        "command": "commitpilot.openSettings",
+        "title": "CommitPilot: Open Settings"
       }
     ],
     "viewsContainers": {
@@ -81,6 +88,38 @@
           "group": "navigation"
         }
       ]
+    },
+    "configuration": {
+      "title": "CommitPilot",
+      "properties": {
+        "commitpilot.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key for generating commit messages",
+          "order": 1
+        },
+        "commitpilot.openaiModel": {
+          "type": "string",
+          "default": "gpt-3.5-turbo",
+          "enum": [
+            "gpt-3.5-turbo",
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-4o",
+            "gpt-4o-mini"
+          ],
+          "description": "OpenAI model to use for generating commit messages",
+          "order": 2
+        },
+        "commitpilot.maxTokens": {
+          "type": "number",
+          "default": 150,
+          "minimum": 50,
+          "maximum": 500,
+          "description": "Maximum number of tokens for commit message generation",
+          "order": 3
+        }
+      }
     }
   },
   "scripts": {

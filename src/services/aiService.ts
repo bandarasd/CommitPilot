@@ -1,7 +1,5 @@
 import OpenAI from "openai";
 import * as vscode from "vscode";
-import * as dotenv from "dotenv";
-import * as path from "path";
 
 export interface CommitMessageResult {
   summary: string;
@@ -10,40 +8,75 @@ export interface CommitMessageResult {
 }
 
 export class AIService {
-  private client: OpenAI;
+  private client: OpenAI | null = null;
+  private context: vscode.ExtensionContext;
 
   constructor(context: vscode.ExtensionContext) {
-    // Load environment variables from the extension's directory
-    const extensionPath = context.extensionPath;
-    dotenv.config({ path: path.join(extensionPath, ".env") });
+    this.context = context;
+    this.initializeClient();
+    
+    // Listen for configuration changes
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('commitpilot.openaiApiKey')) {
+        this.initializeClient();
+      }
+    });
+  }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "OpenRouter API key not found. Please set OPENROUTER_API_KEY in your extension's .env file."
-      );
+  private initializeClient() {
+    const config = vscode.workspace.getConfiguration('commitpilot');
+    const apiKey = config.get<string>('openaiApiKey');
+
+    if (!apiKey || apiKey.trim() === '') {
+      this.client = null;
+      return;
     }
 
-    this.client = new OpenAI({
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: apiKey,
-    });
+    try {
+      // Check if it's an OpenRouter API key (starts with sk-or-)
+      if (apiKey.startsWith('sk-or-')) {
+        this.client = new OpenAI({
+          baseURL: "https://openrouter.ai/api/v1",
+          apiKey: apiKey,
+        });
+      } else {
+        // Standard OpenAI API key
+        this.client = new OpenAI({
+          apiKey: apiKey,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to initialize OpenAI client:', error);
+      this.client = null;
+    }
   }
 
   async generateCommitMessage(
     gitDiff: string,
     changedFiles: string[]
   ): Promise<CommitMessageResult> {
+    if (!this.client) {
+      throw new Error(
+        "OpenAI API key not configured. Please set your API key in VS Code settings (CommitPilot: OpenAI API Key)."
+      );
+    }
+
+    const config = vscode.workspace.getConfiguration('commitpilot');
+    const model = config.get<string>('openaiModel', 'gpt-3.5-turbo');
+    const maxTokens = config.get<number>('maxTokens', 150);
     const prompt = this.buildPrompt(gitDiff, changedFiles);
 
     try {
-      const completion = await this.client.chat.completions.create(
-        {
-          model: "x-ai/grok-4-fast:free",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert at writing concise, meaningful Git commit messages following conventional commit format. 
+      // Use different model based on API type
+      const isOpenRouter = model === 'x-ai/grok-4-fast:free' || this.client.baseURL?.includes('openrouter');
+      const actualModel = isOpenRouter ? 'x-ai/grok-4-fast:free' : model;
+      
+      const requestOptions: any = {
+        model: actualModel,
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at writing concise, meaningful Git commit messages following conventional commit format. 
             Analyze the git diff and generate:
             1. A summary (max 50 chars): type(scope): brief description
             2. A detailed description explaining what changed and why
@@ -55,21 +88,28 @@ export class AIService {
               "description": "Implemented JWT-based authentication system with login/logout functionality. Added middleware for protected routes and user session management.",
               "type": "feat"
             }`,
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.3,
-          max_tokens: 300,
-        },
-        {
-          headers: {
-            "HTTP-Referer": "https://github.com/bandarasd/CommitPilot",
-            "X-Title": "CommitPilot VS Code Extension",
           },
-        }
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      };
+
+      // Add headers for OpenRouter
+      const requestHeaders: any = {};
+      if (isOpenRouter) {
+        requestHeaders.headers = {
+          "HTTP-Referer": "https://github.com/bandarasd/CommitPilot",
+          "X-Title": "CommitPilot VS Code Extension",
+        };
+      }
+
+      const completion = await this.client.chat.completions.create(
+        requestOptions,
+        requestHeaders
       );
 
       const responseContent = completion.choices[0].message.content;

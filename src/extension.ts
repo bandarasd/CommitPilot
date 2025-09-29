@@ -94,9 +94,18 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // Command to open CommitPilot settings
+  let openSettingsDisposable = vscode.commands.registerCommand(
+    "commitpilot.openSettings",
+    () => {
+      vscode.commands.executeCommand('workbench.action.openSettings', 'commitpilot');
+    }
+  );
+
   context.subscriptions.push(
     disposable,
     generateCommitDisposable,
-    testDisposable
+    testDisposable,
+    openSettingsDisposable
   );
 }
