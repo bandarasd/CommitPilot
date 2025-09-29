@@ -2,7 +2,7 @@
   "name": "commitpilot",
   "displayName": "CommitPilot",
   "description": "AI-powered Git commit message generator for VS Code. Generate meaningful commit messages using AI based on your staged changes.",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "publisher": "DananjayaBandara",
   "engines": {
     "vscode": "^1.104.0"
@@ -29,10 +29,6 @@
   "homepage": "https://github.com/bandarasd/CommitPilot#readme",
   "license": "MIT",
   "icon": "icon.png",
-  "activationEvents": [
-    "onView:commitpilot.sidebar",
-    "onStartupFinished"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -124,7 +120,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npm run copy-assets",
+    "copy-assets": "node -e \"const fs=require('fs'); const path=require('path'); const outDir='out/webview'; if(!fs.existsSync(outDir)) fs.mkdirSync(outDir, {recursive:true}); fs.copyFileSync('src/webview/main.css', path.join(outDir, 'main.css')); fs.copyFileSync('src/webview/main.js', path.join(outDir, 'main.js')); console.log('Assets copied successfully');\"",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",

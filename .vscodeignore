@@ -13,6 +13,7 @@ vsc-extension-quickstart.md
 .env.*
 ICON_INSTRUCTIONS.md
 PUBLISHING_GUIDE.md
+MARKETPLACE_PUBLICATION_GUIDE.md
 icon.svg
 node_modules/**/README.md
 node_modules/**/CHANGELOG.md

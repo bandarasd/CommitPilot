@@ -66,7 +66,10 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri],
     };
 
+    // Retain context when hidden to prevent reloading
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+    console.log('CommitPilot: Webview resolved and HTML set');
 
     // Handle messages from the webview
     webviewView.webview.onDidReceiveMessage(async (data) => {
@@ -299,18 +302,23 @@ export class CommitPilotProvider implements vscode.WebviewViewProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview) {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "src", "webview", "main.js")
+      vscode.Uri.joinPath(this._extensionUri, "out", "webview", "main.js")
     );
     const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "src", "webview", "main.css")
+      vscode.Uri.joinPath(this._extensionUri, "out", "webview", "main.css")
     );
     const nonce = this.getNonce();
+
+    // Debug logging
+    console.log('CommitPilot: Extension URI:', this._extensionUri.toString());
+    console.log('CommitPilot: Script URI:', scriptUri.toString());
+    console.log('CommitPilot: Style URI:', styleUri.toString());
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' ${webview.cspSource}; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:;">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link href="${styleUri}" rel="stylesheet">
 	<title>CommitPilot</title>

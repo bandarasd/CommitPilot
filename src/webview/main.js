@@ -1,8 +1,12 @@
 // CommitPilot Sidebar JavaScript
 
 (function () {
-  // @ts-ignore
-  const vscode = acquireVsCodeApi();
+  console.log('CommitPilot: main.js loaded');
+  
+  try {
+    // @ts-ignore
+    const vscode = acquireVsCodeApi();
+    console.log('CommitPilot: vscode API acquired');
 
   // Helper functions
   const dom = {
@@ -457,6 +461,23 @@
       }
     }
 
+    function autoExpandTextarea(textarea) {
+      if (!textarea) {
+        return;
+      }
+      
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      
+      // Calculate the new height based on content
+      const minHeight = 70; // minimum height in pixels
+      const maxHeight = 200; // maximum height in pixels
+      const newHeight = Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight));
+      
+      // Set the new height
+      textarea.style.height = newHeight + 'px';
+    }
+
     // Initialize
     vscodeAPI.send("getGitStatus");
     if (commitMessageInput?.value) {
@@ -464,10 +485,26 @@
     }
   }
 
-  // Initialize when DOM is ready
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeExtension);
-  } else {
-    initializeExtension();
+    // Initialize when DOM is ready
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initializeExtension);
+    } else {
+      initializeExtension();
+    }
+  } catch (error) {
+    console.error('CommitPilot: Error initializing extension:', error);
+    // Show a basic error message in the webview
+    if (document.body) {
+      document.body.innerHTML = `
+        <div style="padding: 20px; color: var(--vscode-errorForeground);">
+          <h3>⚠️ CommitPilot Error</h3>
+          <p>Failed to initialize the extension. Please try reloading VS Code.</p>
+          <details>
+            <summary>Error Details</summary>
+            <pre>${error.toString()}</pre>
+          </details>
+        </div>
+      `;
+    }
   }
 })();
